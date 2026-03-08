@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Site Generator</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+      }
+
+      form {
+        max-width: 500px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        margin-top: 4px;
+        margin-bottom: 16px;
+        box-sizing: border-box;
+      }
+
+      button {
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+
+      #status {
+        margin-top: 20px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Generate Site</h2>
+
+    <form id="generateForm">
+      <label>Site Name</label>
+      <input type="text" name="siteName" required />
+
+      <label>Context</label>
+      <textarea name="context" rows="6" required></textarea>
+
+      <button type="submit">Generate</button>
+    </form>
+
+    <div id="status"></div>
+
+    <script>
+      const form = document.getElementById("generateForm");
+      const status = document.getElementById("status");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        status.textContent = "Generating...";
+
+        const formData = new FormData(form);
+        const siteName = formData.get("siteName") || "site";
+
+        try {
+          const response = await fetch("http://localhost:8080/generate", {
+            method: "POST",
+            body: formData,
+          });
+
+          const contentType = response.headers.get("content-type") || "";
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Server error");
+          }
+
+          if (!contentType.includes("application/zip")) {
+            const text = await response.text();
+            throw new Error("Unexpected response type: " + text);
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+
+          a.href = url;
+          a.download = `${siteName}.zip`;
+
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
+          window.URL.revokeObjectURL(url);
+
+          status.textContent = "Download started.";
+        } catch (err) {
+          status.textContent = "Error: " + err.message;
+        }
+      });
+    </script>
+  </body>
+</html>
